@@ -25,7 +25,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [geoData, setGeoData] = useState<{ features: GeoFeature[] } | null>(null);
-  const [activeCountry, setActiveCountry] = useState<string | null>(null);
+  const [, setActiveCountry] = useState<string | null>(null);
   const [svgCreated, setSvgCreated] = useState<boolean>(false);
 
   // Initialize zoom behavior once
