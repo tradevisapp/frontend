@@ -66,14 +66,75 @@ jobs:
           cache-from: type=registry,ref=roeilevinson/tradevis-frontend:latest
           cache-to: type=inline
       
-      - name: Update Helm chart with new version (if applicable)
+      - name: Checkout App Repository
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v3
+        with:
+          repository: tradevisapp/app
+          path: app-repo
+          token: ${{ secrets.GH_PAT }}
+          
+      - name: Update Helm Chart Values
         if: github.event_name != 'pull_request'
         run: |
-          # If the app repo is in a different repository, you would need to:
-          # 1. Check out that repo
-          # 2. Update the values.yaml file
-          # 3. Commit and push the changes
+          # Verify the directory structure
+          find app-repo -type d | sort
           
-          echo "New image version successfully published: v${{ steps.versioning.outputs.version }}"
-          echo "To update your Helm chart, run:"
-          echo "helm upgrade tradevis ./helm-charts/tradevis --set image.tag=v${{ steps.versioning.outputs.version }}" 
+          # Correct path to the values.yaml file
+          VALUES_FILE="app-repo/helm-charts/tradevis/values.yaml"
+          
+          # Check if the file exists
+          if [ ! -f "$VALUES_FILE" ]; then
+            echo "Error: values.yaml not found at path: $VALUES_FILE"
+            echo "Contents of helm-charts directory:"
+            find app-repo/helm-charts -type f | sort
+            exit 1
+          fi
+          
+          # Update the image.tag in values.yaml
+          VERSION="v${{ steps.versioning.outputs.version }}"
+          
+          # Use yq if available, otherwise use sed
+          if command -v yq &> /dev/null; then
+            yq eval ".image.tag = \"$VERSION\"" -i "$VALUES_FILE"
+          else
+            # Backup original file
+            cp "$VALUES_FILE" "$VALUES_FILE.bak"
+            
+            # Use sed to replace the image tag value
+            sed -i "s/tag: .*$/tag: \"$VERSION\"/" "$VALUES_FILE"
+            
+            # Verify the change
+            if ! grep -q "tag: \"$VERSION\"" "$VALUES_FILE"; then
+              echo "Failed to update values.yaml"
+              mv "$VALUES_FILE.bak" "$VALUES_FILE"
+              exit 1
+            fi
+            
+            # Remove backup
+            rm "$VALUES_FILE.bak"
+          fi
+          
+          # Display the changes
+          echo "Updated Helm chart values.yaml with new image tag: $VERSION"
+          echo "Changes made:"
+          cat "$VALUES_FILE" | grep -A 3 "image:"
+      
+      - name: Commit and Push Changes
+        if: github.event_name != 'pull_request'
+        run: |
+          cd app-repo
+          
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          git add helm-charts/tradevis/values.yaml
+          
+          # Only commit if there are changes
+          if git status | grep -q "Changes to be committed"; then
+            git commit -m "Update frontend image to v${{ steps.versioning.outputs.version }}"
+            git push
+            echo "Successfully updated Helm chart with new image version"
+          else
+            echo "No changes to commit"
+          fi 
