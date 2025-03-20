@@ -2,9 +2,7 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -137,8 +135,8 @@ jobs:
             # Set the remote URL with the token for authentication
             git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/tradevisapp/app.git
             
-            # Push changes
-            git push
+            # Push changes to main branch explicitly
+            git push origin main
             echo "Successfully updated Helm chart with new image version"
           else
             echo "No changes to commit"
