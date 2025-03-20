@@ -132,8 +132,14 @@ jobs:
           if git status | grep -q "Changes to be committed"; then
             git commit -m "Update frontend image to v${{ steps.versioning.outputs.version }}"
             
+            # Debug output for diagnosis (URL redacted for security)
+            echo "Setting remote URL for pushing..."
+            
             # Set the remote URL with the token for authentication
-            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/tradevisapp/app.git
+            git remote set-url origin https://roeilevinson:${{ secrets.GH_PAT }}@github.com/tradevisapp/app.git
+            
+            # Debug remote URL (but hide the token)
+            echo "Remote URL set. Pushing to origin main..."
             
             # Push changes to main branch explicitly
             git push origin main
