@@ -136,7 +136,7 @@ jobs:
             echo "Setting remote URL for pushing..."
             
             # Set the remote URL with the token for authentication
-            git remote set-url origin https://roeilevinson:${{ secrets.GH_PAT }}@github.com/tradevisapp/app.git
+            git remote set-url origin https://{{ secrets.GH_PAT }}@github.com/tradevisapp/app.git
             
             # Debug remote URL (but hide the token)
             echo "Remote URL set. Pushing to origin main..."
