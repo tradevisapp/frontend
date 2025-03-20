@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [preserveMapTransform, setPreserveMapTransform] = useState<boolean>(false);
 
   useEffect(() => {
     const loadCountries = async () => {
@@ -36,6 +37,7 @@ const App: React.FC = () => {
       setLoading(true);
       const countryDetail = await fetchCountryDetail(countryId);
       setSelectedCountry(countryDetail);
+      setPreserveMapTransform(false);
     } catch (err) {
       setError(`Failed to load details for ${countryId}. Please try again.`);
       console.error('Error loading country details:', err);
@@ -49,6 +51,7 @@ const App: React.FC = () => {
   };
 
   const closeCountryCard = () => {
+    setPreserveMapTransform(true);
     setSelectedCountry(null);
   };
 
@@ -65,6 +68,7 @@ const App: React.FC = () => {
           countries={countries} 
           onCountryClick={handleCountryClick}
           searchQuery={searchQuery}
+          preserveTransform={preserveMapTransform}
         />
         
         {selectedCountry && (

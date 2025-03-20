@@ -7,6 +7,7 @@ interface WorldMapProps {
   countries: Country[];
   onCountryClick: (countryId: string) => void;
   searchQuery?: string;
+  preserveTransform?: boolean;
 }
 
 // Type for GeoJSON features
@@ -20,10 +21,11 @@ interface GeoFeature {
   id?: string;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQuery }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQuery, preserveTransform = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const currentTransformRef = useRef<d3.ZoomTransform | null>(null);
   const [geoData, setGeoData] = useState<{ features: GeoFeature[] } | null>(null);
   const [, setActiveCountry] = useState<string | null>(null);
   const [svgCreated, setSvgCreated] = useState<boolean>(false);
@@ -44,6 +46,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         const g = svg.select('g');
         if (g) {
           g.attr('transform', event.transform);
+          currentTransformRef.current = event.transform; // Store current transform
         }
       });
       
@@ -121,6 +124,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
     // Apply zoom to SVG if zoom exists
     if (zoomRef.current) {
       svg.call(zoomRef.current);
+      
+      // Apply saved transform if it exists and preserveTransform is true
+      if (preserveTransform && currentTransformRef.current) {
+        // @ts-ignore
+        svg.call(
+          zoomRef.current.transform,
+          currentTransformRef.current
+        );
+      }
     }
 
     // Mark that the SVG has been created
@@ -250,7 +262,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         return '';
       });
 
-  }, [geoData, countries, onCountryClick, getCountryCode]);
+  }, [geoData, countries, onCountryClick, getCountryCode, preserveTransform]);
 
   // Handle search query
   useEffect(() => {
