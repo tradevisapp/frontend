@@ -1,85 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import styled from 'styled-components';
+import NavBar from './components/NavBar';
+import GlobePage from './pages/GlobePage';
 import './App.css';
-import WorldMap from './components/Map/WorldMap';
-import CountryCard from './components/CountryCard/CountryCard';
-import Navbar from './components/Navbar/Navbar';
-import LoadingBar from './components/LoadingBar/LoadingBar';
-import { fetchAllCountries, fetchCountryDetail } from './services/api';
-import { Country, CountryDetail } from './types';
+
+const AppContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #121212;
+`;
 
 const App: React.FC = () => {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<CountryDetail | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [preserveMapTransform, setPreserveMapTransform] = useState<boolean>(false);
-
-  useEffect(() => {
-    const loadCountries = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchAllCountries();
-        setCountries(data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load country data. Please try again later.');
-        console.error('Error loading countries:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCountries();
-  }, []);
-
-  const handleCountryClick = async (countryId: string) => {
-    try {
-      setLoading(true);
-      const countryDetail = await fetchCountryDetail(countryId);
-      setSelectedCountry(countryDetail);
-      setPreserveMapTransform(false);
-    } catch (err) {
-      setError(`Failed to load details for ${countryId}. Please try again.`);
-      console.error('Error loading country details:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const closeCountryCard = () => {
-    setPreserveMapTransform(true);
-    setSelectedCountry(null);
-  };
-
   return (
-    <div className="app">
-      <LoadingBar isLoading={loading} />
-      <Navbar onSearch={handleSearch} />
-      
-      <main className="main-content">
-        {error && <div className="error-message">{error}</div>}
-        
-        <WorldMap 
-          countries={countries} 
-          onCountryClick={handleCountryClick}
-          searchQuery={searchQuery}
-          preserveTransform={preserveMapTransform}
-        />
-        
-        {selectedCountry && (
-          <CountryCard 
-            country={selectedCountry}
-            onClose={closeCountryCard}
-          />
-        )}
-      </main>
-    </div>
+    <Router>
+      <AppContainer>
+        <NavBar />
+        <Routes>
+          <Route path="/" element={<GlobePage />} />
+        </Routes>
+      </AppContainer>
+    </Router>
   );
 };
 
-export default App;
+export default App; 

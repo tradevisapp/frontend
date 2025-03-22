@@ -1,46 +1,73 @@
-# Getting Started with Create React App
+# TradeVis - Interactive 3D Globe for Stock Market Visualization
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+TradeVis is a web application that visualizes global stock market performance on an interactive 3D globe. Countries are color-coded based on their stock market performance, allowing users to quickly identify market trends worldwide.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Interactive 3D Globe**: A fully interactive globe that users can rotate, zoom in/out, and interact with
+- **Real-time Market Data**: Color-coded countries reflecting current stock market performance
+- **Country Information**: Detailed information about each country's stock market, including performance metrics and financial news
+- **Search Functionality**: Easy search for countries or stock markets
+- **Responsive Design**: Works across desktop and mobile devices
 
-### `npm start`
+## Technologies Used
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React
+- TypeScript
+- Three.js for 3D visualization
+- React Three Fiber
+- Styled Components
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Getting Started
 
-### `npm test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Make sure you have Node.js and npm installed on your machine.
 
-### `npm run build`
+### Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clone the repository
+2. Navigate to the frontend directory:
+   ```
+   cd tradevisapp/frontend
+   ```
+3. Install dependencies:
+   ```
+   npm install
+   ```
+4. Start the development server:
+   ```
+   npm start
+   ```
+5. Open your browser at `http://localhost:3000`
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Usage
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Pan Globe**: Click and drag to rotate the globe
+- **Zoom**: Use mouse wheel or the zoom controls in the bottom left
+- **Reset View**: Click the reset button in the controls panel
+- **Country Selection**: Click on a country to view detailed market information
+- **Search**: Use the search bar to find specific countries or markets
 
-### `npm run eject`
+## Project Structure
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```
+frontend/
+├── public/                # Static files
+├── src/                   # Source files
+│   ├── components/        # React components
+│   ├── pages/             # Page components
+│   ├── services/          # API services
+│   ├── App.tsx            # Main application component
+│   └── index.tsx          # Entry point
+├── package.json           # Dependencies and scripts
+└── tsconfig.json          # TypeScript configuration
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Future Improvements
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+- Add more detailed country-specific data
+- Implement historical data view with timeline slider
+- Add comparison feature between countries
+- Integrate more financial news sources
+- Add user authentication for personalized dashboards 
