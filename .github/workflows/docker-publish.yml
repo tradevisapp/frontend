@@ -79,13 +79,13 @@ jobs:
           find app-repo -type d | sort
           
           # Correct path to the values.yaml file
-          VALUES_FILE="app-repo/helm-charts/tradevis/values.yaml"
+          VALUES_FILE="app-repo/charts/app/values.yaml"
           
           # Check if the file exists
           if [ ! -f "$VALUES_FILE" ]; then
             echo "Error: values.yaml not found at path: $VALUES_FILE"
-            echo "Contents of helm-charts directory:"
-            find app-repo/helm-charts -type f | sort
+            echo "Contents of charts directory:"
+            find app-repo/charts -type f | sort
             exit 1
           fi
           
@@ -94,13 +94,13 @@ jobs:
           
           # Use yq if available, otherwise use sed
           if command -v yq &> /dev/null; then
-            yq eval ".image.tag = \"$VERSION\"" -i "$VALUES_FILE"
+            yq eval '.deployment.image.tag = "'$VERSION'"' -i "$VALUES_FILE"
           else
             # Backup original file
             cp "$VALUES_FILE" "$VALUES_FILE.bak"
             
             # Use sed to replace the image tag value
-            sed -i "s/tag: .*$/tag: \"$VERSION\"/" "$VALUES_FILE"
+            sed -i 's/tag: .*$/tag: "'$VERSION'"/' "$VALUES_FILE"
             
             # Verify the change
             if ! grep -q "tag: \"$VERSION\"" "$VALUES_FILE"; then
@@ -126,7 +126,7 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          git add helm-charts/tradevis/values.yaml
+          git add charts/app/values.yaml
           
           # Only commit if there are changes
           if git status | grep -q "Changes to be committed"; then
