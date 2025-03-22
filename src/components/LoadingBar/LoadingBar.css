@@ -1,0 +1,34 @@
+.loading-bar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.loading-bar-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #9b59b6);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+.loading-bar-container.completed .loading-bar-progress {
+  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.loading-bar-container.completed {
+  opacity: 1;
+  animation: fade-out 0.5s ease 0.5s forwards;
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+} 

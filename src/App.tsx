@@ -3,6 +3,7 @@ import './App.css';
 import WorldMap from './components/Map/WorldMap';
 import CountryCard from './components/CountryCard/CountryCard';
 import Navbar from './components/Navbar/Navbar';
+import LoadingBar from './components/LoadingBar/LoadingBar';
 import { fetchAllCountries, fetchCountryDetail } from './services/api';
 import { Country, CountryDetail } from './types';
 
@@ -57,11 +58,10 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
+      <LoadingBar isLoading={loading} />
       <Navbar onSearch={handleSearch} />
       
       <main className="main-content">
-        {loading && <div className="loading-indicator">Loading...</div>}
-        
         {error && <div className="error-message">{error}</div>}
         
         <WorldMap 

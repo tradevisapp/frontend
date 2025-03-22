@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ENV PUBLIC_URL=/app
 RUN npm run build
 
 # Production stage
