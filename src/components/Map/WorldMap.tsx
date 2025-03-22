@@ -24,32 +24,54 @@ interface GeoFeature {
 const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQuery, preserveTransform = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const currentTransformRef = useRef<d3.ZoomTransform | null>(null);
   const [geoData, setGeoData] = useState<{ features: GeoFeature[] } | null>(null);
   const [, setActiveCountry] = useState<string | null>(null);
   const [svgCreated, setSvgCreated] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [mousePos, setMousePos] = useState<{x: number, y: number}>({x: 0, y: 0});
+  
+  // Rotation state for the globe
+  const rotationRef = useRef<[number, number, number]>([0, 0, 0]);
+  const projectionRef = useRef<d3.GeoProjection | null>(null);
 
-  // Initialize zoom behavior once
-  useEffect(() => {
-    if (!svgRef.current || !mapContainerRef.current) return;
+  // Handle mouse down event to start dragging
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    setMousePos({x: e.clientX, y: e.clientY});
+  }, []);
+  
+  // Handle mouse move for rotation
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !projectionRef.current) return;
     
-    const containerWidth = mapContainerRef.current.clientWidth;
-    const containerHeight = mapContainerRef.current.clientHeight;
+    const dx = e.clientX - mousePos.x;
+    const dy = e.clientY - mousePos.y;
+    const rotation = rotationRef.current;
+    const sensitivity = 1.0;
     
-    // Create zoom behavior just once
-    zoomRef.current = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 8])
-      .translateExtent([[0, 0], [containerWidth, containerHeight]])
-      .on('zoom', (event) => {
-        const svg = d3.select(svgRef.current);
-        const g = svg.select('g');
-        if (g) {
-          g.attr('transform', event.transform);
-          currentTransformRef.current = event.transform; // Store current transform
-        }
-      });
-      
+    rotation[0] = rotation[0] + dx * sensitivity;
+    rotation[1] = rotation[1] - dy * sensitivity;
+    rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
+    
+    console.log(`Rotating globe to: [${rotation[0].toFixed(1)}, ${rotation[1].toFixed(1)}]`);
+    
+    projectionRef.current.rotate(rotation);
+    
+    // Update mouse position
+    setMousePos({x: e.clientX, y: e.clientY});
+    
+    // Redraw the globe
+    redrawGlobe();
+  }, [isDragging, mousePos]);
+  
+  // Handle mouse up to end dragging
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+  
+  // Handle mouse leave to end dragging
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
   }, []);
 
   // Load the world GeoJSON data
@@ -93,6 +115,93 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
     return countryCodeMap[countryName] || countryName;
   }, []);
 
+  // Function to redraw the globe with current rotation
+  const redrawGlobe = useCallback(() => {
+    if (!geoData || !svgRef.current || !projectionRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    const path = d3.geoPath().projection(projectionRef.current);
+    
+    // Update country paths
+    svg.selectAll<SVGPathElement, GeoFeature>('.country')
+      .attr('d', feature => {
+        try {
+          return path(feature as any) || '';
+        } catch (e) {
+          return '';
+        }
+      });
+    
+    // Update graticule path
+    svg.select('.graticule')
+      .attr('d', path(d3.geoGraticule().step([15, 15])() as any));
+    
+    // Update country labels
+    svg.selectAll<SVGTextElement, GeoFeature>('.country-label')
+      .attr('x', (d) => {
+        if (!d || !d.geometry) return 0;
+        try {
+          const centroid = path.centroid(d as any);
+          return centroid[0];
+        } catch (e) {
+          return 0;
+        }
+      })
+      .attr('y', (d) => {
+        if (!d || !d.geometry) return 0;
+        try {
+          const centroid = path.centroid(d as any);
+          return centroid[1];
+        } catch (e) {
+          return 0;
+        }
+      })
+      .attr('opacity', (d) => {
+        // Hide labels on the "back" of the globe
+        if (!d || !d.geometry) return 0;
+        try {
+          const centroid = path.centroid(d as any);
+          // d3's centroid function with orthographic projection returns array with position
+          // but doesn't include Z index in the type definitions, access it carefully
+          const z = centroid.length > 2 ? (centroid as number[])[2] : 0;
+          
+          // Only show if on the visible side of the globe (z >= 0)
+          if (z < 0) return 0;
+          
+          // Additional visibility logic based on market change magnitude
+          const countryCode = getCountryCode((d.properties?.name || ''));
+          const countryData = countries.find(c => c.id === d.id || countryCode === c.id);
+          if (!countryData || Math.abs(countryData.stockMarketChange || 0) <= 2.0) return 0;
+          
+          return 1;
+        } catch (e) {
+          return 0;
+        }
+      });
+      
+    // Ensure no more than a limited number of labels are visible to prevent overcrowding
+    // Get all currently visible labels (opacity 1)
+    const visibleLabels = svg.selectAll<SVGTextElement, GeoFeature>('.country-label')
+      .filter(function() { 
+        return d3.select(this).attr('opacity') === '1';
+      })
+      .nodes();
+      
+    if (visibleLabels.length > 7) {
+      // Sort by absolute change value (stored in data-change attribute)
+      const sortedLabels = visibleLabels.sort((a, b) => {
+        const aChange = parseFloat(a.getAttribute('data-change') || '0');
+        const bChange = parseFloat(b.getAttribute('data-change') || '0');
+        return bChange - aChange; // Descending order
+      });
+      
+      // Hide excess labels
+      sortedLabels.slice(7).forEach(label => {
+        d3.select(label).attr('opacity', '0');
+      });
+    }
+  }, [geoData, countries, getCountryCode]);
+
   // Initialize the map
   useEffect(() => {
     if (!geoData || !svgRef.current || !mapContainerRef.current) return;
@@ -103,37 +212,47 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
     // Get container dimensions
     const containerWidth = mapContainerRef.current.clientWidth;
     const containerHeight = mapContainerRef.current.clientHeight;
+    const size = Math.min(containerWidth, containerHeight) * 0.9; // Use 90% of the available space
 
-    // Set up map projection
-    const projection = d3.geoMercator()
-      .scale(containerWidth / 6.5)
-      .center([0, 20]) // Adjust center to remove excessive blank space
-      .translate([containerWidth / 2, containerHeight / 2]);
+    // Set up globe projection (orthographic)
+    const projection = d3.geoOrthographic()
+      .scale(size / 2.3) // Slightly larger globe
+      .translate([0, 0]) // Center at origin for use with group transform
+      .rotate(rotationRef.current);
+    
+    projectionRef.current = projection;
 
     // Create path generator
     const pathGenerator = d3.geoPath().projection(projection);
 
     // Create SVG element
-    const svg = d3.select(svgRef.current)
-      .attr('width', containerWidth)
-      .attr('height', containerHeight);
+    const svgElement = d3.select(svgRef.current)
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .style('cursor', 'grab'); // Add grab cursor
+    
+    // Create a group for the map and center it in the container
+    const g = svgElement.append('g')
+      .attr('transform', `translate(${containerWidth / 2}, ${containerHeight / 2})`)
+      .attr('class', 'globe-group');
+    
+    // Add a water circle (ocean)
+    g.append('circle')
+      .attr('cx', 0)
+      .attr('cy', 0)
+      .attr('r', projection.scale())
+      .attr('class', 'ocean')
+      .attr('fill', '#1e4d6b');
 
-    // Create a group for the map
-    const g = svg.append('g');
-
-    // Apply zoom to SVG if zoom exists
-    if (zoomRef.current) {
-      svg.call(zoomRef.current);
+    // Create graticule generator (longitude/latitude lines)
+    const graticule = d3.geoGraticule()
+      .step([15, 15]); // Line spacing (degrees)
       
-      // Apply saved transform if it exists and preserveTransform is true
-      if (preserveTransform && currentTransformRef.current) {
-        // @ts-ignore
-        svg.call(
-          zoomRef.current.transform,
-          currentTransformRef.current
-        );
-      }
-    }
+    // Add graticule lines
+    g.append('path')
+      .datum(graticule)
+      .attr('class', 'graticule')
+      .attr('d', pathGenerator);
 
     // Mark that the SVG has been created
     setSvgCreated(true);
@@ -159,11 +278,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         const countryData = countries.find(c => c.id === d.id || countryCode === c.id);
         
         if (!countryData || countryData.stockMarketChange === undefined) {
-          return '#555'; // Gray for countries with no data
+          return '#7a7a7a'; // Light gray for countries with no data
         }
-        return countryData.stockMarketChange > 0 
-          ? d3.interpolateGreens(Math.min(countryData.stockMarketChange / 5, 1)) 
-          : d3.interpolateReds(Math.min(Math.abs(countryData.stockMarketChange) / 5, 1));
+        
+        // Use more vivid colors for better visibility
+        if (countryData.stockMarketChange > 0) {
+          return d3.interpolateGreens(Math.min(0.4 + countryData.stockMarketChange / 7, 0.9));
+        } else {
+          return d3.interpolateReds(Math.min(0.4 + Math.abs(countryData.stockMarketChange) / 7, 0.9));
+        }
       })
       .attr('stroke', 'white')
       .attr('stroke-width', 0.5)
@@ -186,33 +309,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         setActiveCountry(null);
       })
       .on('click', (event, d: GeoFeature) => {
-        if (!d || !d.properties || !zoomRef.current) return;
+        if (!d || !d.properties) return;
         
         const countryId = getCountryCode(d.properties.name);
         onCountryClick(countryId);
-        
-        try {
-          // Center and zoom to the clicked country
-          const bounds = pathGenerator.bounds(d as any);
-          const dx = bounds[1][0] - bounds[0][0];
-          const dy = bounds[1][1] - bounds[0][1];
-          const x = (bounds[0][0] + bounds[1][0]) / 2;
-          const y = (bounds[0][1] + bounds[1][1]) / 2;
-          const scale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / containerWidth, dy / containerHeight)));
-          const translate = [containerWidth / 2 - scale * x, containerHeight / 2 - scale * y];
-
-          svg.transition()
-            .duration(750)
-            .call(
-              // @ts-ignore
-              zoomRef.current.transform,
-              d3.zoomIdentity
-                .translate(translate[0], translate[1])
-                .scale(scale)
-            );
-        } catch (e) {
-          console.error("Error zooming to country:", e);
-        }
       });
 
     // Add country labels and values
@@ -240,7 +340,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         }
       })
       .attr('text-anchor', 'middle')
-      .attr('font-size', '8px')
+      .attr('font-size', '9px')
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
       .attr('pointer-events', 'none')
@@ -249,24 +349,71 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
         
         const countryCode = getCountryCode(d.properties.name);
         const countryData = countries.find(c => c.id === d.id || countryCode === c.id);
-        return countryData && countryData.stockMarketChange !== undefined ? 1 : 0;
+        
+        // Only show labels for countries with significant data
+        if (!countryData || countryData.stockMarketChange === undefined) return 0;
+        
+        // Only show labels for countries with significant changes (over 2%)
+        // This helps reduce overlapping text
+        return Math.abs(countryData.stockMarketChange) > 2.0 ? 1 : 0;
       })
+      .attr('stroke', 'black')
+      .attr('stroke-width', '0.3px')
+      .attr('paint-order', 'stroke')
       .text((d: GeoFeature) => {
         if (!d || !d.properties) return '';
         
         const countryCode = getCountryCode(d.properties.name);
         const countryData = countries.find(c => c.id === d.id || countryCode === c.id);
         if (countryData && countryData.stockMarketChange !== undefined) {
-          return `${countryData.name}: ${countryData.stockMarketChange > 0 ? '+' : ''}${countryData.stockMarketChange.toFixed(1)}%`;
+          // Use abbreviations for country names to reduce text length
+          const shortName = countryData.name.length > 10 ? 
+            countryData.id || countryData.name.substring(0, 8) : 
+            countryData.name;
+            
+          return `${shortName}: ${countryData.stockMarketChange > 0 ? '+' : ''}${countryData.stockMarketChange.toFixed(1)}%`;
         }
         return '';
+      })
+      // Filter labels to avoid overcrowding - only show top 10 by absolute change value
+      .each(function(this: SVGTextElement, d: GeoFeature) {
+        if (!d || !d.properties) return;
+        
+        const countryCode = getCountryCode(d.properties.name);
+        const countryData = countries.find(c => c.id === d.id || countryCode === c.id);
+        
+        if (!countryData || countryData.stockMarketChange === undefined) {
+          d3.select(this).remove();
+          return;
+        }
+        
+        // Add data attribute to help with filtering
+        d3.select(this).attr('data-change', Math.abs(countryData.stockMarketChange));
       });
 
-  }, [geoData, countries, onCountryClick, getCountryCode, preserveTransform]);
+    // After all labels are created, keep only the top labels to avoid overcrowding
+    const allLabels = g.selectAll<SVGTextElement, GeoFeature>('.country-label').nodes();
+    const maxLabelsToShow = 7; // Limit the number of labels on screen at once
+
+    if (allLabels.length > maxLabelsToShow) {
+      // Sort by absolute change value (stored in data-change attribute)
+      const sortedLabels = allLabels.sort((a, b) => {
+        const aChange = parseFloat(a.getAttribute('data-change') || '0');
+        const bChange = parseFloat(b.getAttribute('data-change') || '0');
+        return bChange - aChange; // Descending order
+      });
+      
+      // Remove excess labels
+      sortedLabels.slice(maxLabelsToShow).forEach(label => {
+        label.remove();
+      });
+    }
+
+  }, [geoData, countries, onCountryClick, getCountryCode, preserveTransform, redrawGlobe]);
 
   // Handle search query
   useEffect(() => {
-    if (!searchQuery || !geoData || !svgRef.current || !mapContainerRef.current || !svgCreated) return;
+    if (!searchQuery || !geoData || !svgRef.current || !mapContainerRef.current || !svgCreated || !projectionRef.current) return;
 
     try {
       const lowercaseQuery = searchQuery.toLowerCase();
@@ -284,84 +431,88 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
                );
       });
 
-      if (matchedCountry && matchedCountry.properties && zoomRef.current) {
-        const svg = d3.select(svgRef.current);
-        const pathGenerator = d3.geoPath().projection(d3.geoMercator()
-          .scale(mapContainerRef.current.clientWidth / 6.5)
-          .center([0, 20])
-          .translate([mapContainerRef.current.clientWidth / 2, mapContainerRef.current.clientHeight / 2]));
-
-        try {
-          const bounds = pathGenerator.bounds(matchedCountry as any);
-          const dx = bounds[1][0] - bounds[0][0];
-          const dy = bounds[1][1] - bounds[0][1];
-          const x = (bounds[0][0] + bounds[1][0]) / 2;
-          const y = (bounds[0][1] + bounds[1][1]) / 2;
-          const scale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / mapContainerRef.current.clientWidth, dy / mapContainerRef.current.clientHeight)));
-          const translate = [mapContainerRef.current.clientWidth / 2 - scale * x, mapContainerRef.current.clientHeight / 2 - scale * y];
-
-          svg.transition()
-            .duration(750)
-            .call(
-              // @ts-ignore
-              zoomRef.current.transform,
-              d3.zoomIdentity
-                .translate(translate[0], translate[1])
-                .scale(scale)
-            );
-
-          // Set active country
-          setActiveCountry(getCountryCode(matchedCountry.properties.name));
-        } catch (e) {
-          console.error("Error zooming to search result:", e);
-        }
+      if (matchedCountry && matchedCountry.properties && projectionRef.current) {
+        // Rotate globe to focus on the matched country
+        const projection = projectionRef.current;
+        
+        // Create a temporary GeoJSON Point at the country's centroid
+        const centroid = d3.geoCentroid(matchedCountry as any);
+        
+        // Set rotation to focus on country (negative because we're rotating the globe, not the point)
+        rotationRef.current = [-centroid[0], -centroid[1], 0];
+        projection.rotate(rotationRef.current);
+        
+        // Redraw globe with new rotation
+        redrawGlobe();
+        
+        // Set active country
+        setActiveCountry(getCountryCode(matchedCountry.properties.name));
       }
     } catch (e) {
       console.error("Error in search functionality:", e);
     }
-  }, [searchQuery, geoData, countries, getCountryCode, svgCreated]);
+  }, [searchQuery, geoData, countries, getCountryCode, svgCreated, redrawGlobe]);
 
-  // Controls for zoom
-  const handleZoomIn = () => {
-    if (!zoomRef.current || !svgRef.current) return;
-    try {
-      // @ts-ignore
-      d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.5);
-    } catch (e) {
-      console.error("Error zooming in:", e);
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (!zoomRef.current || !svgRef.current) return;
-    try {
-      // @ts-ignore
-      d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.75);
-    } catch (e) {
-      console.error("Error zooming out:", e);
-    }
-  };
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (geoData && svgRef.current && mapContainerRef.current && projectionRef.current) {
+        const containerWidth = mapContainerRef.current.clientWidth;
+        const containerHeight = mapContainerRef.current.clientHeight;
+        const size = Math.min(containerWidth, containerHeight) * 0.9;
+        
+        // Update projection scale, keep origin at 0,0
+        projectionRef.current
+          .scale(size / 2.3)
+          .translate([0, 0]);
+        
+        // Update SVG dimensions
+        d3.select(svgRef.current)
+          .attr('width', '100%')
+          .attr('height', '100%');
+        
+        // Update the group transform to keep the globe centered
+        d3.select(svgRef.current).select('.globe-group')
+          .attr('transform', `translate(${containerWidth / 2}, ${containerHeight / 2})`);
+        
+        // Update ocean circle
+        d3.select(svgRef.current).select('.ocean')
+          .attr('cx', 0)
+          .attr('cy', 0)
+          .attr('r', projectionRef.current.scale());
+        
+        // Redraw globe
+        redrawGlobe();
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [geoData, redrawGlobe]);
 
   const handleReset = () => {
-    if (!zoomRef.current || !svgRef.current) return;
-    try {
-      // @ts-ignore
-      d3.select(svgRef.current).transition().duration(300).call(
-        zoomRef.current.transform,
-        d3.zoomIdentity
-      );
-    } catch (e) {
-      console.error("Error resetting zoom:", e);
-    }
+    if (!projectionRef.current) return;
+    
+    // Reset rotation to default view
+    rotationRef.current = [0, 0, 0];
+    projectionRef.current.rotate(rotationRef.current);
+    redrawGlobe();
   };
 
   return (
     <div className="map-container" ref={mapContainerRef}>
-      <svg ref={svgRef}></svg>
+      <svg 
+        ref={svgRef}
+        width="100%"
+        height="100%"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      ></svg>
       <div className="map-controls">
-        <button onClick={handleZoomIn}>+</button>
-        <button onClick={handleZoomOut}>-</button>
-        <button onClick={handleReset}>Reset</button>
+        <button onClick={handleReset}>Reset View</button>
       </div>
     </div>
   );
