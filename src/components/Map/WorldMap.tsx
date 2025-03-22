@@ -34,46 +34,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
   const rotationRef = useRef<[number, number, number]>([0, 0, 0]);
   const projectionRef = useRef<d3.GeoProjection | null>(null);
 
-  // Handle mouse down event to start dragging
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    setMousePos({x: e.clientX, y: e.clientY});
-  }, []);
-  
-  // Handle mouse move for rotation
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !projectionRef.current) return;
-    
-    const dx = e.clientX - mousePos.x;
-    const dy = e.clientY - mousePos.y;
-    const rotation = rotationRef.current;
-    const sensitivity = 1.0;
-    
-    rotation[0] = rotation[0] + dx * sensitivity;
-    rotation[1] = rotation[1] - dy * sensitivity;
-    rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
-    
-    console.log(`Rotating globe to: [${rotation[0].toFixed(1)}, ${rotation[1].toFixed(1)}]`);
-    
-    projectionRef.current.rotate(rotation);
-    
-    // Update mouse position
-    setMousePos({x: e.clientX, y: e.clientY});
-    
-    // Redraw the globe
-    redrawGlobe();
-  }, [isDragging, mousePos]);
-  
-  // Handle mouse up to end dragging
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-  
-  // Handle mouse leave to end dragging
-  const handleMouseLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
   // Load the world GeoJSON data
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
@@ -201,6 +161,46 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries, onCountryClick, searchQu
       });
     }
   }, [geoData, countries, getCountryCode]);
+
+  // Handle mouse down event to start dragging
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    setMousePos({x: e.clientX, y: e.clientY});
+  }, []);
+  
+  // Handle mouse move for rotation
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !projectionRef.current) return;
+    
+    const dx = e.clientX - mousePos.x;
+    const dy = e.clientY - mousePos.y;
+    const rotation = rotationRef.current;
+    const sensitivity = 1.0;
+    
+    rotation[0] = rotation[0] + dx * sensitivity;
+    rotation[1] = rotation[1] - dy * sensitivity;
+    rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
+    
+    console.log(`Rotating globe to: [${rotation[0].toFixed(1)}, ${rotation[1].toFixed(1)}]`);
+    
+    projectionRef.current.rotate(rotation);
+    
+    // Update mouse position
+    setMousePos({x: e.clientX, y: e.clientY});
+    
+    // Redraw the globe
+    redrawGlobe();
+  }, [isDragging, mousePos, redrawGlobe]);
+  
+  // Handle mouse up to end dragging
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+  
+  // Handle mouse leave to end dragging
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   // Initialize the map
   useEffect(() => {
