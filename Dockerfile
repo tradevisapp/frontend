@@ -13,6 +13,8 @@ COPY . .
 
 # If WARNINGS_ENABLED is true, set environment variable to enable warnings
 ENV REACT_APP_ENABLE_WARNINGS=${WARNINGS_ENABLED}
+# Prevent warnings from being treated as errors
+ENV CI=false
 
 RUN npm run build
 

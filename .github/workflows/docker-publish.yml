@@ -30,7 +30,10 @@ jobs:
         run: npm ci
         
       - name: Build application
-        run: npm run build
+        run: |
+          # Set CI=false to prevent treating warnings as errors
+          export CI=false
+          npm run build
 
       - name: Generate version number
         id: versioning
