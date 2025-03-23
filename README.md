@@ -1,73 +1,64 @@
-# TradeVis - Interactive 3D Globe for Stock Market Visualization
+# TradeVis - Global Stock Market Visualization
 
-TradeVis is a web application that visualizes global stock market performance on an interactive 3D globe. Countries are color-coded based on their stock market performance, allowing users to quickly identify market trends worldwide.
+TradeVis is a React TypeScript application that visualizes global stock market performance using an interactive 3D globe.
 
 ## Features
 
-- **Interactive 3D Globe**: A fully interactive globe that users can rotate, zoom in/out, and interact with
-- **Real-time Market Data**: Color-coded countries reflecting current stock market performance
-- **Country Information**: Detailed information about each country's stock market, including performance metrics and financial news
-- **Search Functionality**: Easy search for countries or stock markets
-- **Responsive Design**: Works across desktop and mobile devices
+- Interactive 3D globe visualization of global stock markets
+- Country-level color coding based on market performance (green for rising, red for falling)
+- Hover effects to display country names and performance data
+- Click interactions to view detailed country market information
+- Smooth zoom, rotation, and reset view controls
+- Search functionality to quickly locate countries
 
 ## Technologies Used
 
 - React
 - TypeScript
-- Three.js for 3D visualization
-- React Three Fiber
+- Three.js (via react-globe.gl)
 - Styled Components
+- Material UI
 
 ## Getting Started
 
 ### Prerequisites
 
-Make sure you have Node.js and npm installed on your machine.
+- Node.js (v14 or later)
+- npm or yarn
 
 ### Installation
 
 1. Clone the repository
-2. Navigate to the frontend directory:
-   ```
-   cd tradevisapp/frontend
-   ```
-3. Install dependencies:
-   ```
-   npm install
-   ```
-4. Start the development server:
-   ```
-   npm start
-   ```
-5. Open your browser at `http://localhost:3000`
+```bash
+git clone https://github.com/yourusername/tradevis.git
+cd tradevis/frontend
+```
 
-## Usage
+2. Install dependencies
+```bash
+npm install
+```
 
-- **Pan Globe**: Click and drag to rotate the globe
-- **Zoom**: Use mouse wheel or the zoom controls in the bottom left
-- **Reset View**: Click the reset button in the controls panel
-- **Country Selection**: Click on a country to view detailed market information
-- **Search**: Use the search bar to find specific countries or markets
+3. Start the development server
+```bash
+npm start
+```
+
+4. Open your browser and navigate to http://localhost:3000
 
 ## Project Structure
 
-```
-frontend/
-├── public/                # Static files
-├── src/                   # Source files
-│   ├── components/        # React components
-│   ├── pages/             # Page components
-│   ├── services/          # API services
-│   ├── App.tsx            # Main application component
-│   └── index.tsx          # Entry point
-├── package.json           # Dependencies and scripts
-└── tsconfig.json          # TypeScript configuration
-```
+- `src/components/Globe`: 3D globe visualization component
+- `src/components/CountryCard`: Detailed country information card
+- `src/components/Navigation`: Top navigation bar with search functionality
+- `src/types`: TypeScript interfaces
+- `src/utils`: Utility functions and mock data
+- `src/styles`: Global styles
 
-## Future Improvements
+## Current Status
 
-- Add more detailed country-specific data
-- Implement historical data view with timeline slider
-- Add comparison feature between countries
-- Integrate more financial news sources
-- Add user authentication for personalized dashboards 
+This version uses mock data to simulate stock market performance. A backend API will be developed in the future to provide real-time market data.
+
+## License
+
+MIT

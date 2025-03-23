@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      buildWithWarnings:
+        description: 'Build with warnings enabled'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   build-and-push:
@@ -63,6 +69,8 @@ jobs:
             roeilevinson/tradevis-frontend:v${{ steps.versioning.outputs.version }}
           cache-from: type=registry,ref=roeilevinson/tradevis-frontend:latest
           cache-to: type=inline
+          build-args: |
+            WARNINGS_ENABLED=${{ github.event.inputs.buildWithWarnings == 'true' && 'true' || 'false' }}
       
       - name: Checkout App Repository
         if: github.event_name != 'pull_request'
